@@ -1,6 +1,6 @@
 # Public Trash
 
-**Public Trash** is a collection of experimental code, research projects, and fun coding exercises. This repository serves as a playground for testing ideas, exploring new technologies, and sharing useful snippets with the community.
+**Public Trash** is a collection of experimental code, research projects, and fun coding exercises (more in my private trash >:3). This repository serves as a playground for testing ideas, exploring new technologies, and sharing useful snippets with the community.
 
 ## Table of Contents
 - [Projects](#projects)
