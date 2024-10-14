@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:anibi/modules/gogoanime_service.dart'; // Ensure this points to your GogoanimeService class
+import 'package:anibi/modules/gogoanime_service.dart';
 import 'watch_page.dart';
 
 class AnimeDetailsPage extends StatefulWidget {
@@ -22,7 +22,7 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
   @override
   void initState() {
     super.initState();
-    fetchAnimeDetails(); // Fetches the basic anime details
+    fetchAnimeDetails(); // Fetches the anime details
   }
 
   // Fetch anime details using GogoanimeService
@@ -30,19 +30,24 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
     try {
       var details = await GogoanimeService.fetchAnimeDetails(widget.animeUrl);
 
-      setState(() {
-        title = details['title'] ?? 'Unknown title';
-        description = details['description'] ?? 'No description';
-        genre = details['genre'] ?? 'No genre';
-        coverImage = details['coverImage'] ?? '';
-        episodes = details['episodes'] ?? [];
-        isLoading = false;
-      });
+      if (mounted) { // Ensure the widget is still mounted before calling setState
+        setState(() {
+          title = details['title'] ?? 'Unknown title';
+          description = details['description'] ?? 'No description';
+          genre = details['genre'] ?? 'No genre';
+          coverImage = details['coverImage'] ?? '';
+          episodes = details['episodes'] ?? [];
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-        title = 'Failed to load anime details';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          title = 'Failed to load anime details';
+        });
+      }
+      print("Error fetching anime details: $e");
     }
   }
 
@@ -53,7 +58,7 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
         title: Text('Anime Details'),
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator()) // Show loader while fetching data
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: SingleChildScrollView(

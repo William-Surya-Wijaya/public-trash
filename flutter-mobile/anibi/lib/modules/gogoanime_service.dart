@@ -34,19 +34,23 @@ class GogoanimeService {
     if (response.statusCode == 200) {
       var document = parser.parse(response.body);
 
-      // Extract anime title
-      String title = document.querySelector('.anime_info_body_bg h1')?.text.trim() ?? 'No title found';
+      // Extract anime title (handle different structures)
+      String title = document.querySelector('.anime_info_body_bg h1')?.text.trim() ?? 
+                     document.querySelector('h1.title')?.text.trim() ?? 'No title found';
 
-      // Extract genres
+      // Extract genres (handle different structures)
       var genreElements = document.querySelectorAll('.anime_info_body_bg a[href*="/genre/"]');
-      String genre = genreElements.map((element) => element.text.trim()).join(', ');
+      String genre = genreElements.map((element) => element.text.trim()).join(', ') ?? 
+                     document.querySelectorAll('.genres a').map((element) => element.text.trim()).join(', ');
 
-      // Extract description
+      // Extract description (handle different structures)
       var infoElements = document.querySelectorAll('.anime_info_body_bg p.type');
-      String description = infoElements.isNotEmpty ? infoElements[1].text.trim() : 'No description found';
+      String description = infoElements.isNotEmpty ? infoElements[1].text.trim() : 
+                          document.querySelector('.description')?.text.trim() ?? 'No description found';
 
-      // Extract cover image
-      String coverImage = document.querySelector('.anime_info_body_bg img')?.attributes['src'] ?? '';
+      // Extract cover image (handle different structures)
+      String coverImage = document.querySelector('.anime_info_body_bg img')?.attributes['src'] ?? 
+                          document.querySelector('.cover img')?.attributes['src'] ?? '';
 
       // Extract episodes list
       String alias = url.split('/').last;
@@ -99,19 +103,87 @@ class GogoanimeService {
     if (response.statusCode == 200) {
       var document = parser.parse(response.body);
 
-      // Try to find the <iframe> tag containing the video URL
+      // Try to find the <iframe> tag (old structure)
       var iframeElement = document.querySelector('iframe');
-      String videoUrl = iframeElement?.attributes['src'] ?? 'No video URL found';
+      String videoUrl = iframeElement?.attributes['src'] ?? '';
 
-      // If there is no iframe, you could also check for a <video> tag (just in case)
-      var videoElement = document.querySelector('video');
-      if (videoElement != null) {
-        videoUrl = videoElement.attributes['src'] ?? videoUrl;
+      // If no iframe is found, look for video inside #video-wrapper (new structure)
+      if (videoUrl.isEmpty) {
+        var videoWrapper = document.querySelector('#video-wrapper');
+        var videoElement = videoWrapper?.querySelector('video source');
+        videoUrl = videoElement?.attributes['src'] ?? '';
       }
 
-      print(videoUrl);
+      // If no video URL is found, try finding links in alternative structures
+      if (videoUrl.isEmpty) {
+        var alternativeVideoSources = document.querySelectorAll('.alternative-source-selector a');
+        for (var source in alternativeVideoSources) {
+          String alternativeUrl = source.attributes['href'] ?? '';
+          if (alternativeUrl.isNotEmpty) {
+            videoUrl = alternativeUrl;
+            break; // Use the first valid source found
+          }
+        }
+      }
 
+      if (videoUrl.isEmpty) {
+        videoUrl = 'No video URL found'; // If still empty, return an error message
+      }
+
+      print(videoUrl); // Debugging output to ensure correct URL is fetched
       return videoUrl;
+    } else {
+      throw Exception('Failed to load video page');
+    }
+  }
+
+   static Future<List<String>> fetchVideoUrls(String episodeUrl) async {
+    final response = await http.get(Uri.parse(episodeUrl));
+
+    if (response.statusCode == 200) {
+      var document = parser.parse(response.body);
+      List<String> videoUrls = [];
+
+      // Try to find the <iframe> tag (old structure)
+      var iframeElements = document.querySelectorAll('iframe');
+      for (var iframe in iframeElements) {
+        String iframeUrl = iframe.attributes['src'] ?? '';
+        if (iframeUrl.isNotEmpty && !iframeUrl.contains('ads') && !iframeUrl.contains('pop')) {
+          // Exclude known ad URLs by checking for common keywords like 'ads', 'pop', etc.
+          videoUrls.add(iframeUrl);
+        }
+      }
+
+      // If no iframe is found, look for video inside #video-wrapper (new structure)
+      var videoWrapper = document.querySelector('#video-wrapper');
+      if (videoWrapper != null) {
+        var videoElement = videoWrapper.querySelectorAll('video source');
+        for (var source in videoElement) {
+          String videoSourceUrl = source.attributes['src'] ?? '';
+          if (videoSourceUrl.isNotEmpty && videoSourceUrl.contains('.mp4')) {
+            videoUrls.add(videoSourceUrl);
+          }
+        }
+      }
+
+      // If no video URL is found, check for alternative structures (but still exclude ad-related links)
+      if (videoUrls.isEmpty) {
+        var alternativeVideoSources = document.querySelectorAll('.alternative-source-selector a');
+        for (var source in alternativeVideoSources) {
+          String altSourceUrl = source.attributes['href'] ?? '';
+          if (altSourceUrl.isNotEmpty && !altSourceUrl.contains('ads') && altSourceUrl.contains('.mp4')) {
+            videoUrls.add(altSourceUrl); // Exclude ads, include .mp4
+          }
+        }
+      }
+
+      if (videoUrls.isEmpty) {
+        print('No valid video sources found.');
+        throw Exception('No video URL found');
+      }
+
+      print(videoUrls); // Debugging output to ensure correct URLs are fetched
+      return videoUrls;
     } else {
       throw Exception('Failed to load video page');
     }

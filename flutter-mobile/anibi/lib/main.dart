@@ -6,6 +6,7 @@ import 'package:anibi/pages/search_page.dart';
 import 'package:anibi/pages/anime_details_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
 }
 
